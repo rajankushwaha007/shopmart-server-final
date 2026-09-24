@@ -6,6 +6,7 @@ function verifyPublic(req, res, next) {
         jwt.verify(token, process.env.JWT_SECRET_KEY)
         next()
     } catch (error) {
+
         res.status(401).send({
             result: "Fail",
             reason: "You Are Not Authorized to Access This API"

@@ -6,6 +6,6 @@ const {
 } = require("../controllers/setting.controller")
 
 SettingRouter.post("", verifyAdmin, createRecord)
-SettingRouter.get("", verifyPublic, getRecord)
+SettingRouter.get("", getRecord)
 
 module.exports = SettingRouter

@@ -12,7 +12,7 @@ const {
     forgetPassword3
 } = require("../controllers/user.controller")
 
-UserRouter.post("", verifyPublic, createRecord)
+UserRouter.post("", createRecord)
 UserRouter.get("", verifyBuyer, getRecord)
 UserRouter.get("/:_id", verifyBuyer, getSingleRecord)
 UserRouter.put("/:_id", verifyBuyer, updateRecord)
