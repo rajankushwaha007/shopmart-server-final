@@ -14,6 +14,7 @@ const CheckoutRouter = require("./checkout.route")
 const NewsletterRouter = require("./newsletter.route")
 const ContactUsRouter = require("./contactus.route")
 const TestimonialRouter = require("./testimonial.route")
+const AIRouter = require("./ai.route")
 
 
 Router.use("/maincategory", MaincategoryRouter)
@@ -30,5 +31,6 @@ Router.use("/checkout", CheckoutRouter)
 Router.use("/newsletter", NewsletterRouter)
 Router.use("/contactus", ContactUsRouter)
 Router.use("/testimonial", TestimonialRouter)
+Router.use("/ai", AIRouter)
 
 module.exports = Router
