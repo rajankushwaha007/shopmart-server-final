@@ -9,9 +9,7 @@ const ai = new GoogleGenAI({
 })
 
 
-// --------------------------------------------------
 // ESCAPE REGEX
-// --------------------------------------------------
 
 function escapeRegex(text) {
 
@@ -20,9 +18,7 @@ function escapeRegex(text) {
 }
 
 
-// --------------------------------------------------
 // SINGULAR KEYWORD
-// --------------------------------------------------
 
 function normalizeKeyword(word) {
 
@@ -40,9 +36,7 @@ function normalizeKeyword(word) {
 }
 
 
-// --------------------------------------------------
 // EXTRACT PRICE FILTER
-// --------------------------------------------------
 
 function extractPriceFilter(question) {
 
@@ -105,9 +99,7 @@ function extractPriceFilter(question) {
 }
 
 
-// --------------------------------------------------
 // EXTRACT KEYWORDS
-// --------------------------------------------------
 
 function extractKeywords(question) {
 
@@ -201,9 +193,7 @@ function extractKeywords(question) {
 }
 
 
-// --------------------------------------------------
 // GEMINI RESPONSE
-// --------------------------------------------------
 
 async function generateAIResponse(prompt) {
 
@@ -246,9 +236,7 @@ async function generateAIResponse(prompt) {
 }
 
 
-// --------------------------------------------------
 // ASK AI
-// --------------------------------------------------
 
 const askAI = async (req, res) => {
 
@@ -269,27 +257,16 @@ const askAI = async (req, res) => {
         console.log("Customer Question:", question)
 
 
-        // --------------------------------------------------
         // EXTRACT KEYWORDS
-        // --------------------------------------------------
 
         const keywords = extractKeywords(question)
 
         console.log("AI Keywords:", keywords)
 
 
-        // --------------------------------------------------
-        // PRICE FILTER
-        // --------------------------------------------------
-
         const priceFilter = extractPriceFilter(question)
 
         console.log("AI Price Filter:", priceFilter)
-
-
-        // --------------------------------------------------
-        // FIND CATEGORY / SUBCATEGORY / BRAND IDs
-        // --------------------------------------------------
 
         const keywordConditions = []
 
@@ -401,12 +378,6 @@ const askAI = async (req, res) => {
 
             keywordConditions.push(condition)
         }
-
-
-        // --------------------------------------------------
-        // MONGODB FILTER
-        // --------------------------------------------------
-
         const mongoFilter = {
 
             status: true,
@@ -422,11 +393,6 @@ const askAI = async (req, res) => {
             mongoFilter.$and = keywordConditions
 
         }
-
-
-        // --------------------------------------------------
-        // FIND PRODUCTS
-        // --------------------------------------------------
 
         const products = await Product.find(mongoFilter)
 
@@ -445,11 +411,6 @@ const askAI = async (req, res) => {
             `AI Candidate Products: ${products.length}`
         )
 
-
-        // --------------------------------------------------
-        // NO PRODUCTS FOUND
-        // --------------------------------------------------
-
         if (products.length === 0) {
 
             return res.status(200).json({
@@ -466,11 +427,6 @@ const askAI = async (req, res) => {
 
             })
         }
-
-
-        // --------------------------------------------------
-        // PRODUCT DATA FOR GEMINI
-        // --------------------------------------------------
 
         const productData = products.map(product => ({
 
@@ -515,11 +471,6 @@ const askAI = async (req, res) => {
 
         }))
 
-
-        // --------------------------------------------------
-        // GEMINI PROMPT
-        // --------------------------------------------------
-
         const prompt = `
 You are ShopMart AI Assistant.
 
@@ -552,19 +503,8 @@ CUSTOMER QUESTION:
 
 ${question}
 `
-
-
-        // --------------------------------------------------
-        // GEMINI
-        // --------------------------------------------------
-
         const response =
             await generateAIResponse(prompt)
-
-
-        // --------------------------------------------------
-        // PARSE GEMINI RESPONSE
-        // --------------------------------------------------
 
         let aiResult
 
@@ -596,11 +536,6 @@ ${question}
             })
         }
 
-
-        // --------------------------------------------------
-        // SELECT REAL PRODUCTS
-        // --------------------------------------------------
-
         const selectedProducts =
             products.filter(product =>
 
@@ -609,12 +544,6 @@ ${question}
                 )
 
             )
-
-
-        // --------------------------------------------------
-        // FINAL PRODUCT DATA
-        // --------------------------------------------------
-
         const finalProducts =
             selectedProducts.map(product => ({
 
@@ -655,11 +584,6 @@ ${question}
                     product.size
 
             }))
-
-
-        // --------------------------------------------------
-        // FINAL RESPONSE
-        // --------------------------------------------------
 
         return res.status(200).json({
 

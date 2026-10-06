@@ -1,8 +1,8 @@
-// const mongoose = require("mongoose")
-// require("dotenv").config()
 require("dotenv").config()
 
 const mongoose = require("mongoose")
+const fs = require("fs")
+const path = require("path")
 
 console.log("DB_KEY loaded:", !!process.env.DB_KEY)
 
@@ -11,12 +11,10 @@ const Maincategory = require("../models/maincategory.model")
 const Subcategory = require("../models/subcategory.model")
 const Brand = require("../models/brand.model")
 
-const TARGET_PRODUCTS = 2000
+const TARGET_PRODUCTS = 500
 
 
-// --------------------------------------------------
 // DATA
-// --------------------------------------------------
 
 const categories = {
 
@@ -100,13 +98,10 @@ const categories = {
         "Competitive Exam Books",
         "Stationery"
     ]
-
 }
 
 
-// --------------------------------------------------
 // BRANDS
-// --------------------------------------------------
 
 const brands = {
 
@@ -195,13 +190,10 @@ const brands = {
         "Oswaal",
         "McGraw Hill"
     ]
-
 }
 
-
-// --------------------------------------------------
+// ===============================
 // PRODUCT TYPES
-// --------------------------------------------------
 
 const productTypes = {
 
@@ -425,9 +417,9 @@ const productTypes = {
     ],
 
     "Outdoor Toys": [
-        "Toy Gun",
         "Toy Football",
-        "Outdoor Play Set"
+        "Outdoor Play Set",
+        "Toy Car"
     ],
 
     "Chocolates": [
@@ -571,13 +563,10 @@ const productTypes = {
         "Pencil Set",
         "School Stationery Set"
     ]
-
 }
 
 
-// --------------------------------------------------
-// COLORS & SIZES
-// --------------------------------------------------
+// COLORS
 
 const colors = [
     "Black",
@@ -588,34 +577,43 @@ const colors = [
     "Grey",
     "Yellow"
 ]
-const imageMap = {
 
-    "Laptops": "uploads/products/laptop.jpg",
-    "Mobiles": "uploads/products/mobile.jpg",
-    "Televisions": "uploads/products/laptop.jpg",
 
-    "T-Shirts": "uploads/products/tshirt.jpg",
-    "Shirts": "uploads/products/shirt.jpg",
-    "Jeans": "uploads/products/jeans.jpg",
-    "Shoes": "uploads/products/shoes.jpg",
-    "Sandals": "uploads/products/sandals.jpg",
-    "Bags": "uploads/products/bag.jpg",
+// PRODUCT IMAGE FOLDER
 
-    "Headphones": "uploads/products/headphones.jpg",
-    "Smart Watches": "uploads/products/smartwatch.jpg",
-    "Cameras": "uploads/products/camera.jpg",
-    "Power Banks": "uploads/products/mobile.jpg",
+const productImageFolder = path.join(
+    __dirname,
+    "../public/uploads/products/generated"
+)
 
-    "Kitchen Appliances": "uploads/products/kitchen.jpg",
-    "Furniture": "uploads/products/furniture.jpg",
-    "Home Decor": "uploads/products/home-decor.jpg",
-
-    "Cricket": "uploads/products/sports.jpg",
-    "Football": "uploads/products/sports.jpg",
-    "Badminton": "uploads/products/sports.jpg",
-    "Fitness": "uploads/products/sports.jpg",
-    "Sports Accessories": "uploads/products/sports.jpg"
+if (!fs.existsSync(productImageFolder)) {
+    throw new Error(
+        "Product image folder not found: " + productImageFolder
+    )
 }
+
+
+// GET ALL PRODUCT IMAGES
+
+const productImages = fs
+    .readdirSync(productImageFolder)
+    .filter(file => /\.(jpg|jpeg|png|webp)$/i.test(file))
+    .sort()
+    .map(file => `uploads/products/generated/${file}`)
+
+if (productImages.length === 0) {
+    throw new Error(
+        "No product images found inside public/uploads/products"
+    )
+}
+
+console.log(
+    `Available product images: ${productImages.length}`
+)
+
+
+// SIZES
+
 const clothingSizes = [
     "S",
     "M",
@@ -624,17 +622,18 @@ const clothingSizes = [
 ]
 
 
-// --------------------------------------------------
 // HELPER FUNCTIONS
-// --------------------------------------------------
 
 function randomItem(array) {
-    return array[Math.floor(Math.random() * array.length)]
+    return array[
+        Math.floor(Math.random() * array.length)
+    ]
 }
 
-
 function randomNumber(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min
+    return Math.floor(
+        Math.random() * (max - min + 1)
+    ) + min
 }
 
 
@@ -673,267 +672,210 @@ function getPrice(category) {
 
 
 function createProductName(type, brand, index) {
-
     return `${brand} ${type} ${index}`
 }
 
 
-// --------------------------------------------------
 // MAIN IMPORT FUNCTION
-// --------------------------------------------------
 
 async function importProducts() {
 
     try {
 
-        console.log("\nConnecting to MongoDB...\n")
-
+        // CONNECT MONGODB
         await mongoose.connect(process.env.DB_KEY)
 
-        console.log("MongoDB Connected Successfully\n")
-
-
-        // --------------------------------------------------
-        // GET EXISTING PRODUCT IMAGE
-        // --------------------------------------------------
-
-        const existingProduct = await Product.findOne({
-            pic: {
-                $exists: true,
-                $ne: []
-            }
-        }).lean()
-
-
-        if (!existingProduct || !existingProduct.pic?.length) {
-
-            throw new Error(
-                "No existing product image found. Please add at least one product first."
-            )
-
-        }
-
-
-        const defaultPic = existingProduct.pic[0]
-
-
-        console.log("Using existing product image:")
-        console.log(defaultPic)
-        console.log("")
-
-
-        // --------------------------------------------------
-        // EXISTING PRODUCT NAMES
-        // --------------------------------------------------
-
-        const existingProducts = await Product.find(
-            {},
-            {
-                name: 1
-            }
-        ).lean()
-
-
-        const existingNames = new Set(
-            existingProducts.map(product => product.name)
+        console.log(
+            "MongoDB Connected Successfully\n"
         )
-
+        // DELETE ALL OLD PRODUCTS
+        await Product.deleteMany({})
 
         console.log(
-            `Existing Products: ${existingProducts.length}`
+            "Old products deleted successfully.\n"
         )
-
-
-        // --------------------------------------------------
-        // CATEGORY CACHE
-        // --------------------------------------------------
-
+        console.log(
+            "Starting fresh product generation...\n"
+        )
+        // CACHE
         const categoryMap = {}
         const subcategoryMap = {}
         const brandMap = {}
+        // MAIN CATEGORIES
 
-
-        // --------------------------------------------------
-        // CREATE / GET MAIN CATEGORIES
-        // --------------------------------------------------
-
-        for (const categoryName of Object.keys(categories)) {
-
-            let category = await Maincategory.findOne({
-                name: categoryName
-            })
-
-
+        for (
+            const categoryName of Object.keys(categories)
+        ) {
+            let category =
+                await Maincategory.findOne({
+                    name: categoryName
+                })
             if (!category) {
 
-                category = await Maincategory.create({
-                    name: categoryName,
-                    pic: defaultPic,
-                    status: true
-                })
+                category =
+                    await Maincategory.create({
 
+                        name: categoryName,
+
+                        pic: getRandomProductImage(),
+
+                        status: true
+                    })
                 console.log(
                     `Created Maincategory: ${categoryName}`
                 )
             }
-
-
-            categoryMap[categoryName] = category._id
+            categoryMap[categoryName] =
+                category._id
         }
+        // SUBCATEGORIES
+        for (
+            const categoryName of Object.keys(categories)
+        ) {
 
+            for (
+                const subcategoryName
+                of categories[categoryName]
+            ) {
 
-        // --------------------------------------------------
-        // CREATE / GET SUBCATEGORIES
-        // --------------------------------------------------
-
-        for (const categoryName of Object.keys(categories)) {
-
-            for (const subcategoryName of categories[categoryName]) {
-
-                let subcategory = await Subcategory.findOne({
-                    name: subcategoryName
-                })
-
-
+                let subcategory =
+                    await Subcategory.findOne({
+                        name: subcategoryName
+                    })
                 if (!subcategory) {
 
-                    subcategory = await Subcategory.create({
-                        name: subcategoryName,
-                        pic: defaultPic,
-                        status: true
-                    })
+                    subcategory =
+                        await Subcategory.create({
 
+                            name: subcategoryName,
+
+                            pic: getRandomProductImage(),
+
+                            status: true
+                        })
                     console.log(
                         `Created Subcategory: ${subcategoryName}`
                     )
                 }
-
-
-                subcategoryMap[subcategoryName] = subcategory._id
+                subcategoryMap[subcategoryName] =
+                    subcategory._id
             }
         }
+        // BRANDS
+        for (
+            const categoryName of Object.keys(brands)
+        ) {
 
+            for (
+                const brandName
+                of brands[categoryName]
+            ) {
 
-        // --------------------------------------------------
-        // CREATE / GET BRANDS
-        // --------------------------------------------------
-
-        for (const categoryName of Object.keys(brands)) {
-
-            for (const brandName of brands[categoryName]) {
-
-                let brand = await Brand.findOne({
-                    name: brandName
-                })
-
-
+                let brand =
+                    await Brand.findOne({
+                        name: brandName
+                    })
                 if (!brand) {
 
-                    brand = await Brand.create({
-                        name: brandName,
-                        pic: defaultPic,
-                        status: true
-                    })
+                    brand =
+                        await Brand.create({
 
+                            name: brandName,
+
+                            pic: getRandomProductImage(),
+
+                            status: true
+                        })
                     console.log(
                         `Created Brand: ${brandName}`
                     )
                 }
-
-
-                brandMap[brandName] = brand._id
+                brandMap[brandName] =
+                    brand._id
             }
         }
-
-
-        // --------------------------------------------------
         // GENERATE PRODUCTS
-        // --------------------------------------------------
 
         const products = []
 
         let counter = 1
 
-
-        while (products.length < TARGET_PRODUCTS) {
-
-            const categoryName = randomItem(
-                Object.keys(categories)
+        const existingNames = new Set()
+        if (productImages.length < TARGET_PRODUCTS) {
+            throw new Error(
+                `Only ${productImages.length} product images found. Required: ${TARGET_PRODUCTS}`
             )
-
-
-            const subcategoryName = randomItem(
-                categories[categoryName]
-            )
-
-
-            const typeList = productTypes[subcategoryName]
-
+        }
+        while (
+            products.length < TARGET_PRODUCTS
+        ) {
+            // RANDOM CATEGORY
+            const categoryName =
+                randomItem(
+                    Object.keys(categories)
+                )
+            // RANDOM SUBCATEGORY
+            const subcategoryName =
+                randomItem(
+                    categories[categoryName]
+                )
+            // PRODUCT TYPE LIST
+            const typeList =
+                productTypes[subcategoryName]
 
             if (!typeList) {
                 continue
             }
+            // RANDOM PRODUCT TYPE
+            const type =
+                randomItem(typeList)
 
-
-            const type = randomItem(typeList)
-
-
-            const brandList = brands[categoryName]
-
-
-            const brandName = randomItem(brandList)
-
-
-            const productName = createProductName(
-                type,
-                brandName,
-                counter
-            )
-
-
+            // RANDOM BRAND
+            const brandList =
+                brands[categoryName]
+            const brandName =
+                randomItem(brandList)
+            // PRODUCT NAME
+            const productName =
+                createProductName(
+                    type,
+                    brandName,
+                    counter
+                )
             counter++
-
-
-            // Avoid duplicate product names
-            if (existingNames.has(productName)) {
+            // DUPLICATE CHECK
+            if (
+                existingNames.has(productName)
+            ) {
                 continue
             }
-
-
             existingNames.add(productName)
-
-
-            // --------------------------------------------------
             // PRICE
-            // --------------------------------------------------
-
-            const basePrice = getPrice(categoryName)
-
-            const discount = randomNumber(5, 40)
-
-            const finalPrice = Math.round(
-                basePrice - (basePrice * discount / 100)
-            )
+            const basePrice =
+                getPrice(categoryName)
 
 
-            // --------------------------------------------------
+            const discount =
+                randomNumber(5, 40)
+
+
+            const finalPrice =
+                Math.round(
+                    basePrice -
+                    (
+                        basePrice *
+                        discount /
+                        100
+                    )
+                )
             // SIZE
-            // --------------------------------------------------
-
             let sizes = ["N/A"]
-
             if (
-                categoryName === "Fashion" ||
-                categoryName === "Sports"
+                categoryName === "Fashion"
             ) {
                 sizes = clothingSizes
             }
-
-
-            // --------------------------------------------------
             // PRODUCT
-            // --------------------------------------------------
-
             const product = {
 
                 name: productName,
@@ -954,61 +896,48 @@ async function importProducts() {
 
                 size: sizes,
 
-                basePrice,
+                basePrice: basePrice,
 
-                discount,
+                discount: discount,
 
-                finalPrice,
+                finalPrice: finalPrice,
 
                 stock: true,
 
-                stockQuantity: randomNumber(5, 100),
+                stockQuantity:
+                    randomNumber(5, 100),
 
                 description:
                     `${productName} available at ShopMart. Quality product with attractive pricing and reliable performance.`,
 
                 pic: [
-                    imageMap[subcategoryName] || defaultPic
+                    productImages[products.length]
                 ],
 
                 status: true
             }
-
-
             products.push(product)
-
-
-            if (products.length % 100 === 0) {
+            // PROGRESS
+            if (
+                products.length % 100 === 0
+            ) {
 
                 console.log(
                     `Prepared ${products.length} products...`
                 )
             }
         }
-
-
-        // --------------------------------------------------
-        // INSERT
-        // --------------------------------------------------
-
+        // INSERT PRODUCTS
         console.log(
             `\nInserting ${products.length} products...\n`
         )
-
-
         const insertedProducts =
             await Product.insertMany(products)
-
 
         console.log(
             `Successfully Inserted: ${insertedProducts.length}`
         )
-
-
-        // --------------------------------------------------
         // FINAL COUNT
-        // --------------------------------------------------
-
         const totalProducts =
             await Product.countDocuments()
 
@@ -1017,19 +946,25 @@ async function importProducts() {
             `Total Products Now: ${totalProducts}`
         )
 
+        console.log(
+            "\nProduct import completed successfully! 🎉\n"
+        )
 
-        console.log("\nProduct import completed successfully! 🎉\n")
+    }
 
-
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "\nProduct Import Error:"
         )
 
-        console.error(error.message)
+        console.error(
+            error
+        )
 
-    } finally {
+    }
+
+    finally {
 
         await mongoose.connection.close()
 
@@ -1038,10 +973,5 @@ async function importProducts() {
         )
     }
 }
-
-
-// --------------------------------------------------
 // RUN
-// --------------------------------------------------
-
 importProducts()
