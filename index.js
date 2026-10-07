@@ -13,12 +13,18 @@ app.use(cors())
 app.use(express.json())
 
 app.use("/api", Router)
-// app.use("/public", express.static("./public"))
+
+// Serve uploaded images
+app.use(
+    "/uploads",
+    express.static(path.join(__dirname, "public/uploads"))
+)
+
 app.use("/public", express.static(path.join(__dirname, "public")))
 app.use(express.static(path.join(__dirname, 'dist')))
 
 app.use((req, res) => {
-    express.static(path.join(__dirname, 'dist'))
+    express.static(path.join(__dirname, 'dist', "index.html"))
 });
 
 
