@@ -4,6 +4,12 @@ const Maincategory = require("../models/maincategory.model")
 const Subcategory = require("../models/subcategory.model")
 const Brand = require("../models/brand.model")
 
+console.log(
+    "GEMINI_API_KEY loaded:",
+    !!process.env.GEMINI_API_KEY,
+    "length:",
+    process.env.GEMINI_API_KEY?.length || 0
+)
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 })
