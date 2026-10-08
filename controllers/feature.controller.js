@@ -16,6 +16,8 @@ async function createRecord(req, res) {
     }
 }
 
+
+
 async function getRecord(req, res) {
     try {
         let data = await Feature.find().sort({ _id: -1 })
